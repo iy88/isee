@@ -27,15 +27,12 @@ const wss = new ws.Server({
     const tid = setTimeout(() => {
       if (!users[uid]) {
         socket.close();
-        console.log('auto clear by time out...');
       }
     }, 5 * 1000);
-    console.log('connected');
     socket.on('message', (data: string) => {
       let raw = data;
       try {
         let pkg = JSON.parse(raw);
-        console.log('data from client:', pkg);
         if (pkg.action === 'SUN') {
           if (pkg.data && typeof pkg.data === "string") {
             users[uid] = { un: pkg.data, rooms: [], conn: socket };
@@ -103,13 +100,10 @@ const wss = new ws.Server({
           socket.send("N M S L, Son of the Bitch");
         }
       } catch (e) {
-        console.log(e);
-        // console.log('auto clear by wrong data type...');
         socket.close();
       }
     })
     socket.on('error', () => {
-      console.log('error');
       if (uid) {
         if (users[uid].rooms.length !== 0) {
           users[uid].rooms.forEach((rid: string) => {
@@ -123,7 +117,6 @@ const wss = new ws.Server({
       }
     })
     socket.on('close', () => {
-      console.log('closed');
       if (uid) {
         if (users[uid].rooms.length !== 0) {
           users[uid].rooms.forEach((rid: string) => {
