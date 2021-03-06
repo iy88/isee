@@ -28,14 +28,16 @@ const wss = new ws.Server({
       if (!users[uid]) {
         socket.close();
       }
-    }, 5 * 1000);
+    }, 10 * 60 * 1000);
     socket.on('message', (data: string) => {
       let raw = data;
       try {
         let pkg = JSON.parse(raw);
         if (pkg.action === 'SUN') {
           if (pkg.data && typeof pkg.data === "string") {
-            users[uid] = { un: pkg.data, rooms: [], conn: socket };
+            if (!users[uid]) {
+              users[uid] = { un: pkg.data, rooms: [], conn: socket };
+            }
             socket.send(JSON.stringify({ action: 'SUN', code: 1 }));
           } else {
             socket.send(JSON.stringify({ action: 'SUN', code: -1 }));
@@ -49,7 +51,7 @@ const wss = new ws.Server({
                 users[uid].rooms.push(pkg.data.rid);
                 socket.send(JSON.stringify({ action: 'CR', rid: pkg.data.rid, code: 1 }));
               } else {
-                socket.send(JSON.stringify({ action: 'CR', code: 0 }));
+                socket.send(JSON.stringify({ action: 'CR', rid: pkg.data.rid, code: 0 }));
               }
             } else {
               socket.send(JSON.stringify({ action: 'CR', code: -1 }));
@@ -64,12 +66,12 @@ const wss = new ws.Server({
                 if (rooms[pkg.data.rid].key === pkg.data.key) {
                   rooms[pkg.data.rid].members.push(uid);
                   users[uid].rooms.push(pkg.data.rid);
-                  socket.send(JSON.stringify({ action: 'JR', rid: pkg.data, code: 1 }));
+                  socket.send(JSON.stringify({ action: 'JR', rid: pkg.data.rid, code: 1 }));
                 } else {
                   socket.send(JSON.stringify({ action: 'JR', rid: pkg.data.rid, code: 0.1 }));
                 }
               } else {
-                socket.send(JSON.stringify({ action: 'JR', code: 0 }));
+                socket.send(JSON.stringify({ action: 'JR', rid: pkg.data.rid, code: 0 }));
               }
             } else {
               socket.send(JSON.stringify({ action: 'JR', code: -1 }));
@@ -104,7 +106,7 @@ const wss = new ws.Server({
       }
     })
     socket.on('error', () => {
-      if (uid) {
+      if (users[uid]) {
         if (users[uid].rooms.length !== 0) {
           users[uid].rooms.forEach((rid: string) => {
             rooms[rid].members.splice(rooms[rid].members.indexOf(uid), 1);
@@ -117,7 +119,7 @@ const wss = new ws.Server({
       }
     })
     socket.on('close', () => {
-      if (uid) {
+      if (users[uid]) {
         if (users[uid].rooms.length !== 0) {
           users[uid].rooms.forEach((rid: string) => {
             rooms[rid].members.splice(rooms[rid].members.indexOf(uid), 1);
