@@ -19,7 +19,7 @@ interface user {
 }
 let rooms: room = {};
 let users: user = {};
-const log = new Log(true);
+const log = new Log(false);
 
 const wss = new ws.Server({
   port: 1111,
@@ -74,6 +74,9 @@ const wss = new ws.Server({
                 if (rooms[pkg.data.rid].key === pkg.data.key) {
                   rooms[pkg.data.rid].members.push(uid);
                   users[uid].rooms.push(pkg.data.rid);
+                  rooms[pkg.data.rid].members.forEach((id)=>{
+                    users[id].conn.send(JSON.stringify({ action: 'PM', data: { rid: pkg.data.rid, from: { uid:'server', un: 'server' }, msg: `${users[uid].un} was joined` } }));
+                  })
                   socket.send(JSON.stringify({ action: 'JR', rid: pkg.data.rid, code: 1 }));
                 } else {
                   socket.send(JSON.stringify({ action: 'JR', rid: pkg.data.rid, code: 0.1 }));
@@ -120,6 +123,10 @@ const wss = new ws.Server({
             rooms[rid].members.splice(rooms[rid].members.indexOf(uid), 1);
             if (rooms[rid].members.length === 0) {
               delete rooms[rid];
+            }else {
+              rooms[rid].members.forEach(id => {
+                users[id].conn.send(JSON.stringify({ action: 'PM', data: { rid: rid, from: { uid:'server', un: 'server' }, msg: `${users[uid].un} was left` } }));
+              })
             }
           })
         }
@@ -133,6 +140,10 @@ const wss = new ws.Server({
             rooms[rid].members.splice(rooms[rid].members.indexOf(uid), 1);
             if (rooms[rid].members.length === 0) {
               delete rooms[rid];
+            } else {
+              rooms[rid].members.forEach(id => {
+                users[id].conn.send(JSON.stringify({ action: 'PM', data: { rid: rid, from: { uid:'server', un: 'server' }, msg: `${users[uid].un} was left` } }));
+              })
             }
           })
         }
