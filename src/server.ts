@@ -1,5 +1,7 @@
 import ws from "ws";
 import uuid from "./uuid";
+import Log from "./log";
+
 interface room {
   [id: string]: roomInfo
 }
@@ -17,22 +19,28 @@ interface user {
 }
 let rooms: room = {};
 let users: user = {};
+const log = new Log(true);
+
 const wss = new ws.Server({
   port: 1111,
   perMessageDeflate: false
 }, () => {
   console.log(`websocket server listening at ws://localhost:1111`);
-  wss.on('connection', (socket: ws) => {
+  wss.on('connection', (socket: ws, req) => {
     const uid = uuid();
+    log.debug(`get a connect from ${req.socket.remoteAddress}:${req.socket.remotePort}, create uuid ${uid}`);
     const tid = setTimeout(() => {
       if (!users[uid]) {
         socket.close();
+        log.debug(`auto close connection [${req.socket.remoteAddress}:${req.socket.remotePort}/${uid}] which too long no response`);
       }
     }, 10 * 60 * 1000);
     socket.on('message', (data: string) => {
       let raw = data;
+      log.debug(`received data [${raw}] from [${req.socket.remoteAddress}:${req.socket.remotePort}/${uid}]`);
       try {
         let pkg = JSON.parse(raw);
+        log.debug(`parsed data from [${req.socket.remoteAddress}:${req.socket.remotePort}/${uid}]`);
         if (pkg.action === 'SUN') {
           if (pkg.data && typeof pkg.data === "string") {
             if (!users[uid]) {
@@ -85,10 +93,10 @@ const wss = new ws.Server({
               if (rooms[pkg.data.rid]) {
                 rooms[pkg.data.rid].members.forEach(id => {
                   if (id !== uid) {
-                    users[id].conn.send(JSON.stringify({ action: 'PM', data: { rid: pkg.data.rid, from: { uid, nn: users[uid].un }, msg: pkg.data.msg, } }));
+                    users[id].conn.send(JSON.stringify({ action: 'PM', data: { rid: pkg.data.rid, from: { uid, un: users[uid].un }, msg: pkg.data.msg } }));
                   }
                 })
-                socket.send(JSON.stringify({ action: 'SM', code: 1 }));
+                socket.send(JSON.stringify({ action: 'SM', data: { rid: pkg.data.rid, from: { uid, un: users[uid].un }, msg: pkg.data.msg }, code: 1 }));
               } else {
                 socket.send(JSON.stringify({ action: 'SM', code: 0 }));
               }
